@@ -507,6 +507,9 @@ func (r *Raft) startStopReplication() {
 		close(repl.stopCh)
 		delete(r.leaderState.replState, serverID)
 		r.observe(PeerObservation{Peer: repl.peer, Removed: true})
+		if closer, ok := r.trans.(TargetCloser); ok {
+			closer.CloseTargetConns(repl.peer.Address)
+		}
 	}
 }
 

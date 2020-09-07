@@ -119,6 +119,11 @@ type StreamLayer interface {
 	Dial(address ServerAddress, timeout time.Duration) (net.Conn, error)
 }
 
+// TargetCloser allows to close pooled target connections
+type TargetCloser interface {
+	CloseTargetConns(target ServerAddress)
+}
+
 type netConn struct {
 	target ServerAddress
 	conn   net.Conn
@@ -270,6 +275,23 @@ func (n *NetworkTransport) Close() error {
 		n.shutdown = true
 	}
 	return nil
+}
+
+// CloseTargetConns closes pooled connections for target server.
+func (n *NetworkTransport) CloseTargetConns(target ServerAddress) {
+	n.connPoolLock.Lock()
+	defer n.connPoolLock.Unlock()
+
+	conns, ok := n.connPool[target]
+	if !ok {
+		return
+	}
+
+	for _, conn := range conns {
+		conn.Release()
+	}
+
+	delete(n.connPool, target)
 }
 
 // Consumer implements the Transport interface.
